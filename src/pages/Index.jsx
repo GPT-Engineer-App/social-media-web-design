@@ -3,11 +3,15 @@ import UploadForm from "../components/UploadForm";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { db } from "../firebaseConfig";
-import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, addDoc } from "firebase/firestore";
+import { Textarea } from "@/components/ui/textarea";
+import { EmojiPicker } from "emoji-picker-react";
 
 const Index = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [posts, setPosts] = useState([]);
+  const [comment, setComment] = useState("");
+  const [selectedPostId, setSelectedPostId] = useState(null);
 
   useEffect(() => {
     const q = query(collection(db, "uploads"), orderBy("createdAt", "desc"));
@@ -21,6 +25,21 @@ const Index = () => {
 
     return () => unsubscribe();
   }, []);
+
+  const handleAddComment = async (postId) => {
+    if (comment.length > 200) {
+      alert("Comment should not exceed 200 characters.");
+      return;
+    }
+
+    await addDoc(collection(db, "uploads", postId, "comments"), {
+      text: comment,
+      createdAt: new Date(),
+    });
+
+    setComment("");
+    setSelectedPostId(null);
+  };
 
   return (
     <div className="h-screen w-screen flex flex-col items-center justify-center">
@@ -50,6 +69,25 @@ const Index = () => {
             <p className="text-lg">{post.description}</p>
             <p className="text-sm text-gray-500">Uploaded by: {post.uploader}</p>
             <p className="text-sm text-gray-500">Upload time: {new Date(post.createdAt.seconds * 1000).toLocaleString()}</p>
+            <div className="mt-4">
+              <h2 className="text-xl">Comments</h2>
+              {post.comments && post.comments.map((comment) => (
+                <div key={comment.id} className="mt-2 p-2 border rounded">
+                  <p>{comment.text}</p>
+                  <p className="text-sm text-gray-500">{new Date(comment.createdAt.seconds * 1000).toLocaleString()}</p>
+                </div>
+              ))}
+              <div className="mt-4">
+                <Textarea
+                  placeholder="Add a comment..."
+                  value={selectedPostId === post.id ? comment : ""}
+                  onChange={(e) => setComment(e.target.value)}
+                  maxLength={200}
+                />
+                <EmojiPicker onEmojiClick={(e, emojiObject) => setComment(comment + emojiObject.emoji)} />
+                <Button onClick={() => handleAddComment(post.id)}>Add Comment</Button>
+              </div>
+            </div>
           </div>
         ))}
       </div>
